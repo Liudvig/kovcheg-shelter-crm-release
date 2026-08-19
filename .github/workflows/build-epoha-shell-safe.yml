@@ -1,4 +1,4 @@
-name: Build Epoha Shell 0.4.0 Retro 2010
+name: Build Epoha Shell 0.4.1 Win7 Fix
 
 on:
   push:
@@ -22,64 +22,153 @@ jobs:
           }
           if (-not (Test-Path $csc)) { throw "csc.exe v3.5 not found" }
 
-      - name: Prepare Win7 source
+      - name: Prepare Win7 source without encoding damage
         shell: powershell
         run: |
-          $src = Get-Content ProgramV04.cs -Raw
+          # IMPORTANT: Windows PowerShell 5 treats BOM-less UTF-8 as ANSI unless Encoding is explicit.
+          # This was the cause of the mojibake in 0.4.0.
+          $src = Get-Content ProgramV04.cs -Raw -Encoding UTF8
+
+          $src = $src.Replace('config-v04.xml', 'config-v041.xml')
+          $src = $src.Replace('EpohaShell-0.4.0.log', 'EpohaShell-0.4.1.log')
+          $src = $src.Replace('ЭПОХА 0.4.0', 'ЭПОХА 0.4.1')
+
+          # Keep the overload used by the appearance page.
           $extra = @'
           private Button ActionButton(DbPanel p,string text,int x,int y,int w,int h,EventHandler ev){Button b=new Button();b.Text=text;b.SetBounds(x,y,w,h);b.FlatStyle=FlatStyle.Flat;b.FlatAppearance.BorderColor=Accent;b.BackColor=Color.FromArgb(28,34,48);b.ForeColor=Color.White;b.Font=F(8,FontStyle.Bold);b.Click+=ev;p.Controls.Add(b);return b;}
 
           '@
           $src = $src.Replace('        private void BuildAdminGeneral(DbPanel p)', '        ' + $extra + '        private void BuildAdminGeneral(DbPanel p)')
-          Set-Content -Path ProgramV04Build.cs -Value $src -Encoding UTF8
+
+          # A non-transparent FlowLayoutPanel which paints the selected wallpaper itself.
+          # This prevents an opaque game grid from covering the wallpaper.
+          $wallFlow = @'
+          public class WallpaperFlow : FlowLayoutPanel
+          {
+              private Image wallpaper;
+              private string mode = "Fill";
+              private int dim = 48;
+              private Color accent = Color.MediumPurple;
+
+              public WallpaperFlow()
+              {
+                  SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.UserPaint | ControlStyles.OptimizedDoubleBuffer, true);
+                  UpdateStyles();
+              }
+
+              public void Apply(string path, string wallpaperMode, int darkness, Color accentColor)
+              {
+                  mode = String.IsNullOrEmpty(wallpaperMode) ? "Fill" : wallpaperMode;
+                  dim = Math.Max(0, Math.Min(90, darkness));
+                  accent = accentColor;
+                  if (wallpaper != null) { wallpaper.Dispose(); wallpaper = null; }
+                  try
+                  {
+                      if (!String.IsNullOrEmpty(path) && File.Exists(path))
+                      {
+                          using (FileStream fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+                          using (Image i = Image.FromStream(fs)) wallpaper = new Bitmap(i);
+                      }
+                  }
+                  catch { wallpaper = null; }
+                  Invalidate();
+              }
+
+              protected override void Dispose(bool disposing)
+              {
+                  if (disposing && wallpaper != null) wallpaper.Dispose();
+                  base.Dispose(disposing);
+              }
+
+              protected override void OnPaintBackground(PaintEventArgs e)
+              {
+                  Rectangle box = ClientRectangle;
+                  e.Graphics.Clear(Color.FromArgb(8,12,22));
+                  if (wallpaper != null && box.Width > 0 && box.Height > 0)
+                  {
+                      Rectangle dest;
+                      if (mode == "Stretch") dest = new Rectangle(0,0,box.Width,box.Height);
+                      else if (mode == "Center") dest = new Rectangle((box.Width-wallpaper.Width)/2,(box.Height-wallpaper.Height)/2,wallpaper.Width,wallpaper.Height);
+                      else
+                      {
+                          double k = Math.Max((double)box.Width / wallpaper.Width, (double)box.Height / wallpaper.Height);
+                          int w = (int)(wallpaper.Width*k); int h = (int)(wallpaper.Height*k);
+                          dest = new Rectangle((box.Width-w)/2,(box.Height-h)/2,w,h);
+                      }
+                      e.Graphics.InterpolationMode = InterpolationMode.HighQualityBicubic;
+                      e.Graphics.DrawImage(wallpaper, dest);
+                  }
+                  else
+                  {
+                      using (LinearGradientBrush bg = new LinearGradientBrush(box, Color.FromArgb(18,28,46), Color.FromArgb(5,9,17), 35f)) e.Graphics.FillRectangle(bg, box);
+                  }
+                  int a = Math.Max(0, Math.Min(230, dim * 255 / 100));
+                  using (SolidBrush shade = new SolidBrush(Color.FromArgb(a,5,8,15))) e.Graphics.FillRectangle(shade, box);
+                  using (Pen p = new Pen(Color.FromArgb(22,accent),1f)) for (int y=0; y<box.Height; y+=72) e.Graphics.DrawLine(p,0,y,box.Width,y);
+              }
+          }
+
+          '@
+          $src = $src.Replace('    public class NavButton : Control', '    ' + $wallFlow + '    public class NavButton : Control')
+
+          $oldGrid = '            FlowLayoutPanel grid=new FlowLayoutPanel(); grid.Name="gamesGrid"; grid.Dock=DockStyle.Fill; grid.Padding=new Padding(24,22,18,18); grid.WrapContents=true; grid.AutoScroll=true; grid.BackColor=Color.FromArgb(9,12,19); work.Controls.Add(grid);'
+          $newGrid = '            WallpaperFlow grid=new WallpaperFlow(); grid.Name="gamesGrid"; grid.Dock=DockStyle.Fill; grid.Padding=new Padding(24,22,18,18); grid.WrapContents=true; grid.AutoScroll=true; grid.Apply(cfg.WallpaperPath,cfg.WallpaperMode,cfg.WallpaperDim,Accent); work.Controls.Add(grid);'
+          if (-not $src.Contains($oldGrid)) { throw "Game grid patch target not found" }
+          $src = $src.Replace($oldGrid, $newGrid)
+
+          # Add an immediate wallpaper preview to Appearance settings.
+          $preview = '            WallpaperPanel preview=new WallpaperPanel();preview.SetBounds(390,80,300,165);preview.Mode=cfg.WallpaperMode;preview.Dim=cfg.WallpaperDim;preview.LoadWallpaper(cfg.WallpaperPath);p.Controls.Add(preview);' + "`r`n            "
+          $targetMode = '            FieldLabel(p,"Режим обоев",260);'
+          if (-not $src.Contains($targetMode)) { throw "Appearance preview patch target not found" }
+          $src = $src.Replace($targetMode, $preview + $targetMode)
+
+          $src = $src.Replace('work.Dim=dim.Value;work.Invalidate();', 'work.Dim=dim.Value;work.Invalidate();preview.Dim=dim.Value;preview.Invalidate();')
+
+          # Never overwrite a possibly loaded wallpaper file. Store every chosen wallpaper under a unique name.
+          $oldChoose = 'try{string ext=Path.GetExtension(d.FileName);string dst=Path.Combine(Program.AppDir,"wallpaper"+ext);File.Copy(d.FileName,dst,true);cfg.WallpaperPath=dst;cfg.Save();ApplyConfigToUi();}'
+          $newChoose = 'try{using(Image test=Image.FromFile(d.FileName)){int testW=test.Width;}string ext=Path.GetExtension(d.FileName);string dst=Path.Combine(Program.AppDir,"wallpaper-"+DateTime.Now.Ticks.ToString()+ext);File.Copy(d.FileName,dst,true);cfg.WallpaperPath=dst;cfg.Save();ApplyConfigToUi();}'
+          if (-not $src.Contains($oldChoose)) { throw "Wallpaper copy patch target not found" }
+          $src = $src.Replace($oldChoose, $newChoose)
+
+          # Guard against another accidental ANSI conversion.
+          if (-not $src.Contains('ЭПОХА')) { throw "UTF-8 validation failed: ЭПОХА missing" }
+          if (-not $src.Contains('НАСТРОЙКИ')) { throw "UTF-8 validation failed: НАСТРОЙКИ missing" }
+          if (-not $src.Contains('Внешний вид')) { throw "UTF-8 validation failed: Внешний вид missing" }
+
+          Set-Content -Path ProgramV041Build.cs -Value $src -Encoding UTF8
 
       - name: Compile Win7 x86 UTF-8
         shell: powershell
         run: |
           New-Item -ItemType Directory -Force -Path out-safe | Out-Null
-          & "$env:WINDIR\Microsoft.NET\Framework\v3.5\csc.exe" /nologo /codepage:65001 /target:winexe /optimize+ /platform:x86 /out:out-safe\EpohaShell-0.4.0-WIN7.exe /reference:System.dll /reference:System.Drawing.dll /reference:System.Windows.Forms.dll /reference:System.Xml.dll ProgramV04Build.cs
+          & "$env:WINDIR\Microsoft.NET\Framework\v3.5\csc.exe" /nologo /codepage:65001 /target:winexe /optimize+ /platform:x86 /out:out-safe\EpohaShell-0.4.1-WIN7.exe /reference:System.dll /reference:System.Drawing.dll /reference:System.Windows.Forms.dll /reference:System.Xml.dll ProgramV041Build.cs
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          Get-FileHash out-safe\EpohaShell-0.4.0-WIN7.exe -Algorithm SHA256 | Format-List
+          Get-FileHash out-safe\EpohaShell-0.4.1-WIN7.exe -Algorithm SHA256 | Format-List
 
       - name: Package
         shell: powershell
         run: |
           @'
-          ЭПОХА SHELL 0.4.0 — RETRO 2010
-          Windows 7 x86/x64 compatible test build.
+          ЭПОХА SHELL 0.4.1 — WINDOWS 7 FIX
 
           Исправлено:
-          - полностью удалена прозрачность WinForms-контролов, вызывавшая ошибку Control does not support transparent background colors;
-          - обои теперь рисуются собственным Win7-safe слоем;
-          - затемнение обоев работает через отрисовку, без прозрачного BackColor;
-          - номер ПК перенесён к логотипу;
-          - часы перенесены вправо;
-          - по центру шапки появился статус: система готова / игра запущена / бессрочный сеанс / остаток времени / сеанс завершён;
-          - визуальный стиль переработан под компьютерный клуб 2008–2012: градиенты, стеклянные панели, подсветка и аккуратные карточки;
-          - единая двухколоночная разметка без наложений и мерцания.
-
-          Админка:
-          - номер ПК, пароль;
-          - бессрочный или ограниченный по времени сеанс и сброс таймера;
-          - цвет интерфейса;
-          - обои Fill / Stretch / Center;
-          - затемнение 0–90%;
-          - размер карточек;
-          - создание, переименование, удаление и сортировка вкладок;
-          - добавление, изменение, удаление и сортировка игр;
-          - EXE, аргументы запуска и картинка карточки;
-          - автозапуск ЭПОХИ при входе Windows;
-          - подтверждение выключения/перезагрузки.
+          - кракозябры: исходник теперь всегда читается как UTF-8, а перед сборкой проверяются русские строки;
+          - новый config-v041.xml, чтобы испорченные строки из 0.4.0 не вернулись из старого конфига;
+          - игровая сетка больше не закрывает обои непрозрачным чёрным слоем;
+          - обои рисуются непосредственно фоном игрового поля без Transparent BackColor;
+          - выбранные обои копируются под уникальным именем, поэтому нет конфликта с уже открытым файлом;
+          - во вкладке «Внешний вид» добавлен предпросмотр обоев;
+          - ползунок затемнения сразу меняет предпросмотр;
+          - режимы Fill / Stretch / Center сохраняются.
 
           Пароль первого запуска: 2000
           Ctrl+Alt+E: вход администратора.
-          Клубные блокировки Windows пока не активируются в этой тестовой сборке.
           '@ | Set-Content -Encoding UTF8 out-safe\README.txt
-          Compress-Archive -Path out-safe\* -DestinationPath EpohaShell-0.4.0-WIN7.zip
+          Compress-Archive -Path out-safe\* -DestinationPath EpohaShell-0.4.1-WIN7.zip
 
       - uses: actions/upload-artifact@v4
         with:
-          name: EpohaShell-0.4.0-WIN7
+          name: EpohaShell-0.4.1-WIN7
           path: |
-            out-safe/EpohaShell-0.4.0-WIN7.exe
-            EpohaShell-0.4.0-WIN7.zip
+            out-safe/EpohaShell-0.4.1-WIN7.exe
+            EpohaShell-0.4.1-WIN7.zip
