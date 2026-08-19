@@ -1,0 +1,44 @@
+name: Build Epoha Shell 0.1.1 Safe
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build-safe:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Enable .NET Framework 3.5
+        shell: powershell
+        run: |
+          $csc = "$env:WINDIR\Microsoft.NET\Framework\v3.5\csc.exe"
+          if (-not (Test-Path $csc)) {
+            Enable-WindowsOptionalFeature -Online -FeatureName NetFx3 -All -NoRestart
+          }
+          if (-not (Test-Path $csc)) { throw "csc.exe v3.5 not found" }
+      - name: Compile SAFE x86
+        shell: powershell
+        run: |
+          New-Item -ItemType Directory -Force -Path out-safe | Out-Null
+          & "$env:WINDIR\Microsoft.NET\Framework\v3.5\csc.exe" /nologo /target:winexe /optimize+ /platform:x86 /out:out-safe\EpohaShell-0.1.1-SAFE.exe /reference:System.dll /reference:System.Drawing.dll /reference:System.Windows.Forms.dll ProgramSafe.cs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Get-FileHash out-safe\EpohaShell-0.1.1-SAFE.exe -Algorithm SHA256 | Format-List
+      - name: Package
+        shell: powershell
+        run: |
+          @'
+          ЭПОХА SHELL 0.1.1 SAFE
+          Windows 7 diagnostic build.
+          Admin password: 2000
+          Ctrl+Alt+E: admin login
+          No Windows lockdown/registry restrictions are enabled in this SAFE build.
+          If startup fails after CLR loads, see %TEMP%\EpohaShell-0.1.1.log
+          '@ | Set-Content -Encoding UTF8 out-safe\README.txt
+          Compress-Archive -Path out-safe\* -DestinationPath EpohaShell-0.1.1-SAFE.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: EpohaShell-0.1.1-SAFE
+          path: |
+            out-safe/EpohaShell-0.1.1-SAFE.exe
+            EpohaShell-0.1.1-SAFE.zip
