@@ -1,0 +1,1 @@
+EPOHA Shell 1.2.0 system kiosk build trigger.
