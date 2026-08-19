@@ -1,4 +1,4 @@
-name: Build Epoha Shell 0.5.0 Glass 2010
+name: Build Epoha Shell 0.5.1 Glass Fix
 
 on:
   push:
@@ -22,42 +22,42 @@ jobs:
           }
           if (-not (Test-Path $csc)) { throw "csc.exe v3.5 not found" }
 
-      - name: Prepare 0.5.0 source
+      - name: Prepare 0.5.1 source
         shell: powershell
         run: |
-          .\build_v050.ps1
+          .\build_v051.ps1
 
       - name: Compile Win7 x86 UTF8
         shell: powershell
         run: |
           New-Item -ItemType Directory -Force -Path out-safe | Out-Null
-          & "$env:WINDIR\Microsoft.NET\Framework\v3.5\csc.exe" /nologo /codepage:65001 /target:winexe /optimize+ /platform:x86 /out:out-safe\EpohaShell-0.5.0-WIN7.exe /reference:System.dll /reference:System.Drawing.dll /reference:System.Windows.Forms.dll /reference:System.Xml.dll ProgramV050Build.cs
+          & "$env:WINDIR\Microsoft.NET\Framework\v3.5\csc.exe" /nologo /codepage:65001 /target:winexe /optimize+ /platform:x86 /out:out-safe\EpohaShell-0.5.1-WIN7.exe /reference:System.dll /reference:System.Drawing.dll /reference:System.Windows.Forms.dll /reference:System.Xml.dll ProgramV051Build.cs
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          Get-FileHash out-safe\EpohaShell-0.5.0-WIN7.exe -Algorithm SHA256 | Format-List
+          Get-FileHash out-safe\EpohaShell-0.5.1-WIN7.exe -Algorithm SHA256 | Format-List
 
       - name: Package
         shell: powershell
         run: |
           @'
-          EPOHA SHELL 0.5.0 - GLASS 2010
-          - full-screen shared wallpaper across work area, header and sidebar
-          - adjustable header transparency
-          - adjustable sidebar transparency
-          - adjustable work-area dimming
-          - dark themed TextBox, ComboBox, ListBox and NumericUpDown controls
-          - fixed brand layout with full club name and years
-          - adjustable sidebar width
-          - show/hide date and footer
-          - wallpaper Fill / Stretch / Center
-          - adaptive card sizes and improved navigation/card gradients
+          EPOHA SHELL 0.5.1 - GLASS FIX
+          - real shared wallpaper rendering in header, sidebar, navigation and game cards
+          - header/sidebar transparency range 0..100
+          - game card transparency control
+          - larger date
+          - fixed brand layout
+          - removed LIBRARY caption
+          - dark 2010-style admin controls
+          - admin service buttons: exit Shell, open Explorer, restart Shell
+          - system settings: autostart, always-on-top, one-game-at-a-time, Explorer on Shell exit, power confirmations
+          - compatible with existing config-v050.xml
           Admin password: 2000
           Ctrl+Alt+E: admin login
           '@ | Set-Content -Encoding ASCII out-safe\README.txt
-          Compress-Archive -Path out-safe\* -DestinationPath EpohaShell-0.5.0-WIN7.zip
+          Compress-Archive -Path out-safe\* -DestinationPath EpohaShell-0.5.1-WIN7.zip
 
       - uses: actions/upload-artifact@v4
         with:
-          name: EpohaShell-0.5.0-WIN7
+          name: EpohaShell-0.5.1-WIN7
           path: |
-            out-safe/EpohaShell-0.5.0-WIN7.exe
-            EpohaShell-0.5.0-WIN7.zip
+            out-safe/EpohaShell-0.5.1-WIN7.exe
+            EpohaShell-0.5.1-WIN7.zip
