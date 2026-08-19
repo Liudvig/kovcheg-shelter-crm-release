@@ -1,13 +1,13 @@
 $ErrorActionPreference = "Stop"
 .\build_v100_final.ps1
 $src = Get-Content ProgramV100Build.cs -Raw -Encoding UTF8
-$names = @('clubModeEnabled','watchdogEnabled','replaceExplorerShell','closeExplorerInClubMode')
-foreach($name in $names){
-    $clean='"'+$name+'"'
-    $src=$src.Replace(('\"'+$name+'\"'),$clean)
-    $src=$src.Replace(('\\"'+$name+'\\"'),$clean)
-    $src=$src.Replace(('\\\"'+$name+'\\\"'),$clean)
-}
+
+$load = '                c.ClubModeEnabled = BoolAttr(root, "clubModeEnabled", false);' + "`r`n" +
+        '                c.WatchdogEnabled = BoolAttr(root, "watchdogEnabled", true);' + "`r`n" +
+        '                c.ReplaceExplorerShell = BoolAttr(root, "replaceExplorerShell", false);'
+$save = '            root.SetAttribute("closeExplorerInClubMode", CloseExplorerInClubMode.ToString()); root.SetAttribute("clubModeEnabled", ClubModeEnabled.ToString());' + "`r`n" +
+        '            root.SetAttribute("watchdogEnabled", WatchdogEnabled.ToString()); root.SetAttribute("replaceExplorerShell", ReplaceExplorerShell.ToString());'
+
+$src = [regex]::Replace($src,'(?m)^\s*c\.ClubModeEnabled = BoolAttr\(root, \\.*$',$load,1)
+$src = [regex]::Replace($src,'(?m)^\s*root\.SetAttribute\(\\.*$',$save,1)
 Set-Content -Path ProgramV100Build.cs -Value $src -Encoding UTF8
-$lines=Get-Content ProgramV100Build.cs
-for($i=168;$i -le 230 -and $i -le $lines.Count;$i++){Write-Host (("{0}: {1}" -f $i,$lines[$i-1]))}
