@@ -20,8 +20,8 @@ $src = Get-Content ProgramV110Build.cs -Raw -Encoding UTF8
 function Replace-One([string]$pattern,[string]$replacement,[string]$name) {
     $rx = New-Object System.Text.RegularExpressions.Regex($pattern,[System.Text.RegularExpressions.RegexOptions]::Singleline)
     $newSrc = $rx.Replace($script:src,$replacement,1)
-    if($newSrc -eq $script:src){ throw ("1.1.0 final patch failed: " + $name) }
-    $script:src = $newSrc
+    if($newSrc-eq$script:src){throw("1.1.0 final patch failed: "+$name)}
+    $script:src=$newSrc
 }
 
 # Keep EPOHA on screen until Windows switches to Winlogon; no Explorer flash.
@@ -58,13 +58,13 @@ $native = @'
         [System.Runtime.InteropServices.DllImport("user32.dll")] private static extern bool PostMessage(IntPtr hWnd,uint msg,IntPtr wParam,IntPtr lParam);
 '@
 if($src.Contains('        private IntPtr keyboardHook = IntPtr.Zero;')) {
-    $src = $src.Replace('        private IntPtr keyboardHook = IntPtr.Zero;','        private IntPtr keyboardHook = IntPtr.Zero;' + "`r`n" + $native)
+    $src=$src.Replace('        private IntPtr keyboardHook = IntPtr.Zero;','        private IntPtr keyboardHook = IntPtr.Zero;'+"`r`n"+$native)
 } elseif($src.Contains('        private bool watchdogStarted = false;')) {
-    $src = $src.Replace('        private bool watchdogStarted = false;','        private bool watchdogStarted = false;' + "`r`n" + $native)
+    $src=$src.Replace('        private bool watchdogStarted = false;','        private bool watchdogStarted = false;'+"`r`n"+$native)
 } else { throw '1.1.0 final patch failed: native field anchor' }
 
 # Make the footer a real club taskbar instead of a tiny status strip.
-$src = $src.Replace('root.RowStyles.Add(new RowStyle(SizeType.Absolute,26));','root.RowStyles.Add(new RowStyle(SizeType.Absolute,40));')
+$src=$src.Replace('root.RowStyles.Add(new RowStyle(SizeType.Absolute,26));','root.RowStyles.Add(new RowStyle(SizeType.Absolute,40));')
 $footer = @'
             footer = new DbPanel(); footer.Dock=DockStyle.Fill; footer.Margin=new Padding(0); footer.BackColor=Color.FromArgb(12,16,25); root.Controls.Add(footer,1,2);
             footerLabel = new Label(); footerLabel.Visible=false; footer.Controls.Add(footerLabel);
@@ -135,7 +135,34 @@ $taskMethods = @'
             }catch{}
         }
 
+        private DialogResult ShowEpohaDialog(Form dialog)
+        {
+            bool restoreTop=TopMost;
+            try
+            {
+                TopMost=false;
+                dialog.ShowInTaskbar=false;
+                dialog.TopMost=true;
+                dialog.StartPosition=FormStartPosition.CenterParent;
+                dialog.Owner=this;
+                dialog.Shown+=delegate{try{dialog.BringToFront();dialog.Activate();}catch{}};
+                return dialog.ShowDialog(this);
+            }
+            finally
+            {
+                try{dialog.TopMost=false;}catch{}
+                TopMost=restoreTop||cfg.AlwaysOnTop;
+                try{BringToFront();Activate();}catch{}
+            }
+        }
+
 '@
-$src = $src.Replace('        private void Restart_Click(object sender,EventArgs e)', $taskMethods + '        private void Restart_Click(object sender,EventArgs e)')
+$src=$src.Replace('        private void Restart_Click(object sender,EventArgs e)',$taskMethods+'        private void Restart_Click(object sender,EventArgs e)')
+
+# All internal EPOHA dialogs get an explicit owner and temporarily supersede kiosk TopMost.
+$src=$src.Replace('return f.ShowDialog()==DialogResult.OK?t.Text:null;','return ShowEpohaDialog(f)==DialogResult.OK?t.Text:null;')
+$src=$src.Replace('return f.ShowDialog()==DialogResult.OK?t.Text.Trim():null;','return ShowEpohaDialog(f)==DialogResult.OK?t.Text.Trim():null;')
+$src=$src.Replace('if(f.ShowDialog()!=DialogResult.OK)return null;','if(ShowEpohaDialog(f)!=DialogResult.OK)return null;')
+$src=$src.Replace('if(d.ShowDialog()==DialogResult.OK)','if(d.ShowDialog(this)==DialogResult.OK)')
 
 Set-Content -Path ProgramV110Build.cs -Value $src -Encoding UTF8
