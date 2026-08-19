@@ -1,4 +1,4 @@
-name: Build Epoha Shell 0.4.1 Win7 Fix
+name: Build Epoha Shell 0.5.0 Glass 2010
 
 on:
   push:
@@ -22,144 +22,42 @@ jobs:
           }
           if (-not (Test-Path $csc)) { throw "csc.exe v3.5 not found" }
 
-      - name: Prepare UTF8 source
+      - name: Prepare 0.5.0 source
         shell: powershell
         run: |
-          # The workflow script is intentionally ASCII-only.
-          # Source text is read explicitly as UTF-8 to preserve all Cyrillic strings.
-          $src = Get-Content ProgramV04.cs -Raw -Encoding UTF8
-          $src = $src.Replace('config-v04.xml', 'config-v041.xml')
-          $src = $src.Replace('0.4.0', '0.4.1')
-
-          $extra = @'
-          private Button ActionButton(DbPanel p,string text,int x,int y,int w,int h,EventHandler ev){Button b=new Button();b.Text=text;b.SetBounds(x,y,w,h);b.FlatStyle=FlatStyle.Flat;b.FlatAppearance.BorderColor=Accent;b.BackColor=Color.FromArgb(28,34,48);b.ForeColor=Color.White;b.Font=F(8,FontStyle.Bold);b.Click+=ev;p.Controls.Add(b);return b;}
-
-          '@
-          $src = $src.Replace('        private void BuildAdminGeneral(DbPanel p)', '        ' + $extra + '        private void BuildAdminGeneral(DbPanel p)')
-
-          $wallFlow = @'
-          public class WallpaperFlow : FlowLayoutPanel
-          {
-              private Image wallpaper;
-              private string mode = "Fill";
-              private int dim = 48;
-              private Color accent = Color.MediumPurple;
-
-              public WallpaperFlow()
-              {
-                  SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.UserPaint | ControlStyles.OptimizedDoubleBuffer, true);
-                  UpdateStyles();
-              }
-
-              public void Apply(string path, string wallpaperMode, int darkness, Color accentColor)
-              {
-                  mode = String.IsNullOrEmpty(wallpaperMode) ? "Fill" : wallpaperMode;
-                  dim = Math.Max(0, Math.Min(90, darkness));
-                  accent = accentColor;
-                  if (wallpaper != null) { wallpaper.Dispose(); wallpaper = null; }
-                  try
-                  {
-                      if (!String.IsNullOrEmpty(path) && File.Exists(path))
-                      {
-                          using (FileStream fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
-                          using (Image i = Image.FromStream(fs)) wallpaper = new Bitmap(i);
-                      }
-                  }
-                  catch { wallpaper = null; }
-                  Invalidate();
-              }
-
-              protected override void Dispose(bool disposing)
-              {
-                  if (disposing && wallpaper != null) wallpaper.Dispose();
-                  base.Dispose(disposing);
-              }
-
-              protected override void OnPaintBackground(PaintEventArgs e)
-              {
-                  Rectangle box = ClientRectangle;
-                  e.Graphics.Clear(Color.FromArgb(8,12,22));
-                  if (wallpaper != null && box.Width > 0 && box.Height > 0)
-                  {
-                      Rectangle dest;
-                      if (mode == "Stretch") dest = new Rectangle(0,0,box.Width,box.Height);
-                      else if (mode == "Center") dest = new Rectangle((box.Width-wallpaper.Width)/2,(box.Height-wallpaper.Height)/2,wallpaper.Width,wallpaper.Height);
-                      else
-                      {
-                          double k = Math.Max((double)box.Width / wallpaper.Width, (double)box.Height / wallpaper.Height);
-                          int w = (int)(wallpaper.Width*k); int h = (int)(wallpaper.Height*k);
-                          dest = new Rectangle((box.Width-w)/2,(box.Height-h)/2,w,h);
-                      }
-                      e.Graphics.InterpolationMode = InterpolationMode.HighQualityBicubic;
-                      e.Graphics.DrawImage(wallpaper, dest);
-                  }
-                  else
-                  {
-                      using (LinearGradientBrush bg = new LinearGradientBrush(box, Color.FromArgb(18,28,46), Color.FromArgb(5,9,17), 35f)) e.Graphics.FillRectangle(bg, box);
-                  }
-                  int a = Math.Max(0, Math.Min(230, dim * 255 / 100));
-                  using (SolidBrush shade = new SolidBrush(Color.FromArgb(a,5,8,15))) e.Graphics.FillRectangle(shade, box);
-                  using (Pen p = new Pen(Color.FromArgb(22,accent),1f)) for (int y=0; y<box.Height; y+=72) e.Graphics.DrawLine(p,0,y,box.Width,y);
-              }
-          }
-
-          '@
-          $src = $src.Replace('    public class NavButton : Control', '    ' + $wallFlow + '    public class NavButton : Control')
-
-          $oldGrid = '            FlowLayoutPanel grid=new FlowLayoutPanel(); grid.Name="gamesGrid"; grid.Dock=DockStyle.Fill; grid.Padding=new Padding(24,22,18,18); grid.WrapContents=true; grid.AutoScroll=true; grid.BackColor=Color.FromArgb(9,12,19); work.Controls.Add(grid);'
-          $newGrid = '            WallpaperFlow grid=new WallpaperFlow(); grid.Name="gamesGrid"; grid.Dock=DockStyle.Fill; grid.Padding=new Padding(24,22,18,18); grid.WrapContents=true; grid.AutoScroll=true; grid.Apply(cfg.WallpaperPath,cfg.WallpaperMode,cfg.WallpaperDim,Accent); work.Controls.Add(grid);'
-          if (-not $src.Contains($oldGrid)) { throw "Game grid patch target not found" }
-          $src = $src.Replace($oldGrid, $newGrid)
-
-          # Insert a live wallpaper preview immediately before the appearance field at y=260.
-          $preview = '            WallpaperPanel preview=new WallpaperPanel();preview.SetBounds(390,80,300,165);preview.Mode=cfg.WallpaperMode;preview.Dim=cfg.WallpaperDim;preview.LoadWallpaper(cfg.WallpaperPath);p.Controls.Add(preview);' + "`r`n"
-          $pattern = '(?m)^\s*FieldLabel\(p,"[^"]+",260\);'
-          $match = [regex]::Match($src, $pattern)
-          if (-not $match.Success) { throw "Appearance preview patch target not found" }
-          $src = $src.Substring(0,$match.Index) + $preview + $match.Value + $src.Substring($match.Index + $match.Length)
-
-          $src = $src.Replace('work.Dim=dim.Value;work.Invalidate();', 'work.Dim=dim.Value;work.Invalidate();preview.Dim=dim.Value;preview.Invalidate();')
-
-          $oldChoose = 'try{string ext=Path.GetExtension(d.FileName);string dst=Path.Combine(Program.AppDir,"wallpaper"+ext);File.Copy(d.FileName,dst,true);cfg.WallpaperPath=dst;cfg.Save();ApplyConfigToUi();}'
-          $newChoose = 'try{using(Image test=Image.FromFile(d.FileName)){int testW=test.Width;}string ext=Path.GetExtension(d.FileName);string dst=Path.Combine(Program.AppDir,"wallpaper-"+DateTime.Now.Ticks.ToString()+ext);File.Copy(d.FileName,dst,true);cfg.WallpaperPath=dst;cfg.Save();ApplyConfigToUi();}'
-          if (-not $src.Contains($oldChoose)) { throw "Wallpaper copy patch target not found" }
-          $src = $src.Replace($oldChoose, $newChoose)
-
-          # Validate by Unicode code points rather than literal Cyrillic in this PowerShell file.
-          $brand = ([char]0x042D).ToString()+[char]0x041F+[char]0x041E+[char]0x0425+[char]0x0410
-          if (-not $src.Contains($brand)) { throw "UTF-8 source validation failed" }
-
-          Set-Content -Path ProgramV041Build.cs -Value $src -Encoding UTF8
+          .\build_v050.ps1
 
       - name: Compile Win7 x86 UTF8
         shell: powershell
         run: |
           New-Item -ItemType Directory -Force -Path out-safe | Out-Null
-          & "$env:WINDIR\Microsoft.NET\Framework\v3.5\csc.exe" /nologo /codepage:65001 /target:winexe /optimize+ /platform:x86 /out:out-safe\EpohaShell-0.4.1-WIN7.exe /reference:System.dll /reference:System.Drawing.dll /reference:System.Windows.Forms.dll /reference:System.Xml.dll ProgramV041Build.cs
+          & "$env:WINDIR\Microsoft.NET\Framework\v3.5\csc.exe" /nologo /codepage:65001 /target:winexe /optimize+ /platform:x86 /out:out-safe\EpohaShell-0.5.0-WIN7.exe /reference:System.dll /reference:System.Drawing.dll /reference:System.Windows.Forms.dll /reference:System.Xml.dll ProgramV050Build.cs
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          Get-FileHash out-safe\EpohaShell-0.4.1-WIN7.exe -Algorithm SHA256 | Format-List
+          Get-FileHash out-safe\EpohaShell-0.5.0-WIN7.exe -Algorithm SHA256 | Format-List
 
       - name: Package
         shell: powershell
         run: |
           @'
-          EPOHA SHELL 0.4.1 - WINDOWS 7 FIX
-          - explicit UTF-8 source decoding
-          - fresh config-v041.xml
-          - wallpaper is painted by the game grid itself
-          - no transparent WinForms backgrounds
-          - live wallpaper preview in appearance settings
-          - live dim preview
-          - unique copied wallpaper filenames
-          - Fill / Stretch / Center modes
+          EPOHA SHELL 0.5.0 - GLASS 2010
+          - full-screen shared wallpaper across work area, header and sidebar
+          - adjustable header transparency
+          - adjustable sidebar transparency
+          - adjustable work-area dimming
+          - dark themed TextBox, ComboBox, ListBox and NumericUpDown controls
+          - fixed brand layout with full club name and years
+          - adjustable sidebar width
+          - show/hide date and footer
+          - wallpaper Fill / Stretch / Center
+          - adaptive card sizes and improved navigation/card gradients
           Admin password: 2000
           Ctrl+Alt+E: admin login
           '@ | Set-Content -Encoding ASCII out-safe\README.txt
-          Compress-Archive -Path out-safe\* -DestinationPath EpohaShell-0.4.1-WIN7.zip
+          Compress-Archive -Path out-safe\* -DestinationPath EpohaShell-0.5.0-WIN7.zip
 
       - uses: actions/upload-artifact@v4
         with:
-          name: EpohaShell-0.4.1-WIN7
+          name: EpohaShell-0.5.0-WIN7
           path: |
-            out-safe/EpohaShell-0.4.1-WIN7.exe
-            EpohaShell-0.4.1-WIN7.zip
+            out-safe/EpohaShell-0.5.0-WIN7.exe
+            EpohaShell-0.5.0-WIN7.zip
