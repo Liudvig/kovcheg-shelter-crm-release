@@ -1,4 +1,4 @@
-name: Build Epoha Shell 0.1.3 UI
+name: Build Epoha Shell 0.2.0 Cosmic
 
 on:
   push:
@@ -26,34 +26,35 @@ jobs:
         shell: powershell
         run: |
           New-Item -ItemType Directory -Force -Path out-safe | Out-Null
-          & "$env:WINDIR\Microsoft.NET\Framework\v3.5\csc.exe" /nologo /codepage:65001 /target:winexe /optimize+ /platform:x86 /out:out-safe\EpohaShell-0.1.3-WIN7.exe /reference:System.dll /reference:System.Drawing.dll /reference:System.Windows.Forms.dll ProgramSafe.cs
+          & "$env:WINDIR\Microsoft.NET\Framework\v3.5\csc.exe" /nologo /codepage:65001 /target:winexe /optimize+ /platform:x86 /out:out-safe\EpohaShell-0.2.0-WIN7.exe /reference:System.dll /reference:System.Drawing.dll /reference:System.Windows.Forms.dll /reference:System.Xml.dll ProgramSafe.cs
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          Get-FileHash out-safe\EpohaShell-0.1.3-WIN7.exe -Algorithm SHA256 | Format-List
+          Get-FileHash out-safe\EpohaShell-0.2.0-WIN7.exe -Algorithm SHA256 | Format-List
 
       - name: Package
         shell: powershell
         run: |
           @'
-          ЭПОХА SHELL 0.1.3
+          ЭПОХА SHELL 0.2.0
           Windows 7 x86/x64 compatible test build.
 
-          Исправлено:
-          - исходник компилируется как UTF-8, русский текст должен отображаться нормально;
-          - логотип и название клуба перенесены наверх левой колонки;
-          - часы находятся по центру верхней панели;
-          - справа только Перезагрузить и Выключить;
-          - Администратор стал отдельной вкладкой;
-          - внутри вкладки Администратор кнопка ВОЙТИ расположена по центру.
+          Главное:
+          - игровая область физически отделена от левого меню и больше не может заходить под него;
+          - новый космический фон и подсветка карточек;
+          - адаптивная сетка под 5:4, 16:10, 16:9 и Full HD;
+          - полноценная админка: общие настройки, вкладки, игры, внешний вид, система;
+          - сохранение конфигурации в %LOCALAPPDATA%\Epoha\config.xml;
+          - настройка номера ПК, пароля, вкладок, ярлыков игр, картинок, EXE, параметров запуска;
+          - выбор цвета подсветки и размера карточек.
 
-          Пароль тестовой админки: 2000
-          Ctrl+Alt+E: аварийный вызов админ-входа.
-          Защитные ограничения Windows в этой тестовой сборке пока не включены.
+          Пароль первого запуска: 2000
+          Ctrl+Alt+E: вход администратора.
+          Защитные клубные ограничения Windows пока не включены в этой тестовой сборке.
           '@ | Set-Content -Encoding UTF8 out-safe\README.txt
-          Compress-Archive -Path out-safe\* -DestinationPath EpohaShell-0.1.3-WIN7.zip
+          Compress-Archive -Path out-safe\* -DestinationPath EpohaShell-0.2.0-WIN7.zip
 
       - uses: actions/upload-artifact@v4
         with:
-          name: EpohaShell-0.1.3-WIN7
+          name: EpohaShell-0.2.0-WIN7
           path: |
-            out-safe/EpohaShell-0.1.3-WIN7.exe
-            EpohaShell-0.1.3-WIN7.zip
+            out-safe/EpohaShell-0.2.0-WIN7.exe
+            EpohaShell-0.2.0-WIN7.zip
