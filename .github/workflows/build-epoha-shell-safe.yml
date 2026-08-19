@@ -1,4 +1,4 @@
-name: Build Epoha Shell 1.1.1 Winlogon Fix
+name: Build Epoha Shell 1.2.0 System Kiosk
 
 on:
   push:
@@ -20,41 +20,41 @@ jobs:
           if (-not (Test-Path $csc)) { Enable-WindowsOptionalFeature -Online -FeatureName NetFx3 -All -NoRestart }
           if (-not (Test-Path $csc)) { throw "csc.exe v3.5 not found" }
 
-      - name: Prepare 1.1.1 source
+      - name: Prepare 1.2.0 source
         shell: powershell
-        run: .\build_v111.ps1
+        run: .\build_v120.ps1
 
       - name: Compile Win7 x86 UTF8
         shell: powershell
         run: |
           New-Item -ItemType Directory -Force -Path out-safe | Out-Null
-          & "$env:WINDIR\Microsoft.NET\Framework\v3.5\csc.exe" /nologo /codepage:65001 /target:winexe /optimize+ /platform:x86 /out:out-safe\EpohaShell-1.1.1-WIN7.exe /reference:System.dll /reference:System.Drawing.dll /reference:System.Windows.Forms.dll /reference:System.Xml.dll ProgramV111Build.cs
+          & "$env:WINDIR\Microsoft.NET\Framework\v3.5\csc.exe" /nologo /codepage:65001 /target:winexe /optimize+ /platform:x86 /out:out-safe\EpohaShell-1.2.0-WIN7.exe /reference:System.dll /reference:System.Drawing.dll /reference:System.Windows.Forms.dll /reference:System.Xml.dll ProgramV120Build.cs
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          Get-FileHash out-safe\EpohaShell-1.1.1-WIN7.exe -Algorithm SHA256 | Format-List
+          Get-FileHash out-safe\EpohaShell-1.2.0-WIN7.exe -Algorithm SHA256 | Format-List
 
       - name: Package
         shell: powershell
         run: |
           @'
-          EPOHA SHELL 1.1.1 - WINLOGON / TASK STRIP FIX
-          - keeps the stable 1.0.0 club mode and 0.9.0 interface
-          - removes the redundant EPOHA home button from the task strip
-          - task strip is hidden when no external windows are open
-          - task strip lists only external application windows, not EPOHA dialogs
-          - internal EPOHA dialogs remain owner-bound and above kiosk TopMost
-          - Windows 7 branding installer now writes backgroundDefault.jpg and the current-resolution background file
-          - also installs a .DEFAULT secure-desktop wallpaper fallback
-          - writes both custom-logon policy values and verifies OEMBackground after elevation
-          - hides Fast User Switching entry points
-          - full-screen EPOHA shutdown/restart transition retained
-          - Windows 7 x86 / .NET Framework 3.5
+          EPOHA SHELL 1.2.0 - SYSTEM KIOSK MODE
+          - keeps the stable 0.9.0 interface and 1.0.0 club shell behavior
+          - keeps the 1.1.1 external-window task strip without the redundant EPOHA home button
+          - one System Kiosk action replaces the old branding-only action
+          - applies DisableStatusMessages and Winlogon verbosity suppression at machine scope
+          - detects Device Lockdown / Custom Logon / Keyboard Filter availability using DISM
+          - enables Client-DeviceLockdown, Client-EmbeddedLogon and Client-KeyboardFilter when the OS exposes them
+          - configures EmbeddedLogon branding-neutral, hidden autologon UI and hidden first-logon animation
+          - attempts system-level Ctrl+Alt+Del blocking through the official WEKF_PredefinedKey WMI provider
+          - clearly reports LIMITED mode on Windows editions without the required Device Lockdown features
+          - does not patch winlogon.exe, authui.dll, MUI files or boot resources
+          - Windows 7 x86 / .NET Framework 3.5 compatible shell binary
           Admin password: 2000
           '@ | Set-Content -Encoding ASCII out-safe\README.txt
-          Compress-Archive -Path out-safe\* -DestinationPath EpohaShell-1.1.1-WIN7.zip
+          Compress-Archive -Path out-safe\* -DestinationPath EpohaShell-1.2.0-WIN7.zip
 
       - uses: actions/upload-artifact@v4
         with:
-          name: EpohaShell-1.1.1-WIN7
+          name: EpohaShell-1.2.0-WIN7
           path: |
-            out-safe/EpohaShell-1.1.1-WIN7.exe
-            EpohaShell-1.1.1-WIN7.zip
+            out-safe/EpohaShell-1.2.0-WIN7.exe
+            EpohaShell-1.2.0-WIN7.zip
