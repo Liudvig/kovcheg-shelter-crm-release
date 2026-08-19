@@ -22,7 +22,7 @@ jobs:
 
       - name: Prepare 0.9.0 source
         shell: powershell
-        run: .\build_v090.ps1
+        run: .\build_v090_fix.ps1
 
       - name: Compile Win7 x86 UTF8
         shell: powershell
