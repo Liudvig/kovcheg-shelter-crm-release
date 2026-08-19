@@ -22,7 +22,7 @@ jobs:
 
       - name: Prepare 1.1.0 source
         shell: powershell
-        run: .\build_v110_fix.ps1
+        run: .\build_v110_final.ps1
 
       - name: Compile Win7 x86 UTF8
         shell: powershell
@@ -45,6 +45,7 @@ jobs:
           - hides Fast User Switching entry points at machine scope
           - Ctrl+Alt+Del remains a protected Windows secure sequence, but the Winlogon background can now match EPOHA
           - lower EPOHA task strip lists visible windows so dialogs cannot disappear behind the shell
+          - internal EPOHA dialogs are owner-bound and forced above kiosk TopMost
           - left-click restores an open window; admin context menu can close it
           - watchdog marker is suspended during intentional shutdown/restart and resumes after next club-mode start
           - Windows 7 x86 / .NET Framework 3.5
