@@ -1,4 +1,4 @@
-name: Build Epoha Shell 1.2.0 System Kiosk
+name: Build Epoha Shell 1.2.1 Unicode Fix
 
 on:
   push:
@@ -20,41 +20,34 @@ jobs:
           if (-not (Test-Path $csc)) { Enable-WindowsOptionalFeature -Online -FeatureName NetFx3 -All -NoRestart }
           if (-not (Test-Path $csc)) { throw "csc.exe v3.5 not found" }
 
-      - name: Prepare 1.2.0 source
+      - name: Prepare 1.2.1 source
         shell: powershell
-        run: .\build_v120_fix.ps1
+        run: .\build_v121.ps1
 
       - name: Compile Win7 x86 UTF8
         shell: powershell
         run: |
           New-Item -ItemType Directory -Force -Path out-safe | Out-Null
-          & "$env:WINDIR\Microsoft.NET\Framework\v3.5\csc.exe" /nologo /codepage:65001 /target:winexe /optimize+ /platform:x86 /out:out-safe\EpohaShell-1.2.0-WIN7.exe /reference:System.dll /reference:System.Drawing.dll /reference:System.Windows.Forms.dll /reference:System.Xml.dll ProgramV120Build.cs
+          & "$env:WINDIR\Microsoft.NET\Framework\v3.5\csc.exe" /nologo /codepage:65001 /target:winexe /optimize+ /platform:x86 /out:out-safe\EpohaShell-1.2.1-WIN7.exe /reference:System.dll /reference:System.Drawing.dll /reference:System.Windows.Forms.dll /reference:System.Xml.dll ProgramV121Build.cs
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          Get-FileHash out-safe\EpohaShell-1.2.0-WIN7.exe -Algorithm SHA256 | Format-List
+          Get-FileHash out-safe\EpohaShell-1.2.1-WIN7.exe -Algorithm SHA256 | Format-List
 
       - name: Package
         shell: powershell
         run: |
           @'
-          EPOHA SHELL 1.2.0 - SYSTEM KIOSK MODE
-          - keeps the stable 0.9.0 interface and 1.0.0 club shell behavior
-          - keeps the 1.1.1 external-window task strip without the redundant EPOHA home button
-          - one System Kiosk action replaces the old branding-only action
-          - applies DisableStatusMessages and Winlogon verbosity suppression at machine scope
-          - detects Device Lockdown / Custom Logon / Keyboard Filter availability using DISM
-          - enables Client-DeviceLockdown, Client-EmbeddedLogon and Client-KeyboardFilter when the OS exposes them
-          - configures EmbeddedLogon branding-neutral, hidden autologon UI and hidden first-logon animation
-          - attempts system-level Ctrl+Alt+Del blocking through the official WEKF_PredefinedKey WMI provider
-          - clearly reports LIMITED mode on Windows editions without the required Device Lockdown features
-          - does not patch winlogon.exe, authui.dll, MUI files or boot resources
-          - Windows 7 x86 / .NET Framework 3.5 compatible shell binary
+          EPOHA SHELL 1.2.1 - UNICODE KIOSK UI FIX
+          - keeps 1.2.0 system kiosk logic unchanged
+          - all newly introduced Russian kiosk captions/messages are emitted as ASCII-safe C# Unicode escapes
+          - fixes mojibake on the System Kiosk button and result dialogs under the legacy .NET 3.5 compiler
+          - Windows 7 x86 / .NET Framework 3.5 compatible
           Admin password: 2000
           '@ | Set-Content -Encoding ASCII out-safe\README.txt
-          Compress-Archive -Path out-safe\* -DestinationPath EpohaShell-1.2.0-WIN7.zip
+          Compress-Archive -Path out-safe\* -DestinationPath EpohaShell-1.2.1-WIN7.zip
 
       - uses: actions/upload-artifact@v4
         with:
-          name: EpohaShell-1.2.0-WIN7
+          name: EpohaShell-1.2.1-WIN7
           path: |
-            out-safe/EpohaShell-1.2.0-WIN7.exe
-            EpohaShell-1.2.0-WIN7.zip
+            out-safe/EpohaShell-1.2.1-WIN7.exe
+            EpohaShell-1.2.1-WIN7.zip
