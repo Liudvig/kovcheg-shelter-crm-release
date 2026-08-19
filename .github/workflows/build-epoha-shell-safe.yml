@@ -33,6 +33,7 @@ jobs:
           New-Item -ItemType Directory -Force -Path out-safe | Out-Null
           & "$env:WINDIR\Microsoft.NET\Framework\v3.5\csc.exe" /nologo /codepage:65001 /target:winexe /optimize+ /platform:x86 /out:out-safe\EpohaShell-0.7.0-WIN7.exe /reference:System.dll /reference:System.Drawing.dll /reference:System.Windows.Forms.dll /reference:System.Xml.dll ProgramV070Build.cs
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Copy-Item ProgramV070Build.cs out-safe\ProgramV070Build.cs
           Get-FileHash out-safe\EpohaShell-0.7.0-WIN7.exe -Algorithm SHA256 | Format-List
 
       - name: Package
@@ -40,26 +41,14 @@ jobs:
         run: |
           @'
           EPOHA SHELL 0.7.0 - POLISHED CLUB UI
-          - redesigned visual composition instead of adding more settings
-          - one unified dark-glass setting for header and left menu
-          - bright wallpapers can no longer wash out navigation
-          - calm left navigation without boxed-row look
-          - new category header and game-count hierarchy
-          - game cards without white cheap-looking frames
-          - monogram/EXE icon/cover fallback visuals
-          - cleaner center session status without decorative line
-          - improved brand block and PC badge
-          - adaptive layout remains compatible with square and widescreen monitors
-          - retains club mode, service mode, Explorer restore, config import/export
-          - compatible with existing config-v050.xml
-          Admin password: 2000
-          Emergency admin hotkey: Ctrl+Alt+E
+          Generated source is included temporarily for the 0.8 visual refactor.
           '@ | Set-Content -Encoding ASCII out-safe\README.txt
           Compress-Archive -Path out-safe\* -DestinationPath EpohaShell-0.7.0-WIN7.zip
 
       - uses: actions/upload-artifact@v4
         with:
-          name: EpohaShell-0.7.0-WIN7
+          name: EpohaShell-0.7.0-WIN7-source
           path: |
             out-safe/EpohaShell-0.7.0-WIN7.exe
+            out-safe/ProgramV070Build.cs
             EpohaShell-0.7.0-WIN7.zip
