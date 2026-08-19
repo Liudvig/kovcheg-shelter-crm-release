@@ -1,4 +1,4 @@
-name: Build Epoha Shell 0.7.0 Polished Club UI
+name: Build Epoha Shell 0.7.0 Source Snapshot
 
 on:
   push:
@@ -12,43 +12,23 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
-
       - name: Enable .NET Framework 3.5
         shell: powershell
         run: |
           $csc = "$env:WINDIR\Microsoft.NET\Framework\v3.5\csc.exe"
-          if (-not (Test-Path $csc)) {
-            Enable-WindowsOptionalFeature -Online -FeatureName NetFx3 -All -NoRestart
-          }
+          if (-not (Test-Path $csc)) { Enable-WindowsOptionalFeature -Online -FeatureName NetFx3 -All -NoRestart }
           if (-not (Test-Path $csc)) { throw "csc.exe v3.5 not found" }
-
       - name: Prepare 0.7.0 source
         shell: powershell
-        run: |
-          .\build_v070_fix.ps1
-
-      - name: Compile Win7 x86 UTF8
+        run: .\build_v070_fix.ps1
+      - name: Compile and snapshot
         shell: powershell
         run: |
           New-Item -ItemType Directory -Force -Path out-safe | Out-Null
           & "$env:WINDIR\Microsoft.NET\Framework\v3.5\csc.exe" /nologo /codepage:65001 /target:winexe /optimize+ /platform:x86 /out:out-safe\EpohaShell-0.7.0-WIN7.exe /reference:System.dll /reference:System.Drawing.dll /reference:System.Windows.Forms.dll /reference:System.Xml.dll ProgramV070Build.cs
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           Copy-Item ProgramV070Build.cs out-safe\ProgramV070Build.cs
-          Get-FileHash out-safe\EpohaShell-0.7.0-WIN7.exe -Algorithm SHA256 | Format-List
-
-      - name: Package
-        shell: powershell
-        run: |
-          @'
-          EPOHA SHELL 0.7.0 - POLISHED CLUB UI
-          Generated source is included temporarily for the 0.8 visual refactor.
-          '@ | Set-Content -Encoding ASCII out-safe\README.txt
-          Compress-Archive -Path out-safe\* -DestinationPath EpohaShell-0.7.0-WIN7.zip
-
       - uses: actions/upload-artifact@v4
         with:
-          name: EpohaShell-0.7.0-WIN7-source
-          path: |
-            out-safe/EpohaShell-0.7.0-WIN7.exe
-            out-safe/ProgramV070Build.cs
-            EpohaShell-0.7.0-WIN7.zip
+          name: EpohaShell-0.7.0-source-snapshot
+          path: out-safe/
