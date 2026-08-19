@@ -22,7 +22,7 @@ jobs:
 
       - name: Prepare 1.1.0 source
         shell: powershell
-        run: .\build_v110.ps1
+        run: .\build_v110_fix.ps1
 
       - name: Compile Win7 x86 UTF8
         shell: powershell
@@ -40,10 +40,12 @@ jobs:
           - stable 1.0.0 club mode retained
           - full-screen EPOHA transition covers the user desktop immediately before shutdown/restart
           - one-click elevated Windows 7 branding installer from Admin > System
-          - installs backgroundDefault.jpg for Windows 7 logon/logoff/secure Winlogon screen
+          - installs backgroundDefault.jpg for Windows 7 logon/welcome/logoff/secure Winlogon screen
           - enables OEM/custom logon background policy
           - hides Fast User Switching entry points at machine scope
           - Ctrl+Alt+Del remains a protected Windows secure sequence, but the Winlogon background can now match EPOHA
+          - lower EPOHA task strip lists visible windows so dialogs cannot disappear behind the shell
+          - left-click restores an open window; admin context menu can close it
           - watchdog marker is suspended during intentional shutdown/restart and resumes after next club-mode start
           - Windows 7 x86 / .NET Framework 3.5
           Admin password: 2000
