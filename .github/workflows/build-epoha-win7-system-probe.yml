@@ -1,0 +1,47 @@
+name: Build EPOHA Win7 System Probe
+
+on:
+  push:
+    branches:
+      - build/epoha-shell-prototype
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build-probe:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Enable .NET Framework 3.5
+        shell: powershell
+        run: |
+          $csc = "$env:WINDIR\Microsoft.NET\Framework\v3.5\csc.exe"
+          if (-not (Test-Path $csc)) { Enable-WindowsOptionalFeature -Online -FeatureName NetFx3 -All -NoRestart }
+          if (-not (Test-Path $csc)) { throw "csc.exe v3.5 not found" }
+
+      - name: Compile probe AnyCPU
+        shell: powershell
+        run: |
+          New-Item -ItemType Directory -Force -Path out-probe | Out-Null
+          & "$env:WINDIR\Microsoft.NET\Framework\v3.5\csc.exe" /nologo /codepage:65001 /target:winexe /optimize+ /platform:anycpu /out:out-probe\Epoha-Win7-System-Probe.exe /reference:System.dll /reference:System.Windows.Forms.dll tools\EpohaWin7SystemProbe.cs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Get-FileHash out-probe\Epoha-Win7-System-Probe.exe -Algorithm SHA256 | Format-List
+
+      - name: Add README
+        shell: powershell
+        run: |
+          @'
+          EPOHA WIN7 SYSTEM PROBE
+          Safe read-only collector for a specific Windows 7 installation.
+          It does not patch or replace Windows files.
+
+          Run the EXE and accept UAC.
+          It creates EPOHA-WIN7-PROBE-<timestamp>.cab on the Desktop.
+          Send that CAB back for analysis before any system-resource patch is built.
+          '@ | Set-Content -Encoding ASCII out-probe\README.txt
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Epoha-Win7-System-Probe
+          path: out-probe/*
