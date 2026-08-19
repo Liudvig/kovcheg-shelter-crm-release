@@ -1,1 +1,1 @@
-Epoha Shell 0.1.1 SAFE diagnostic build trigger.
+Epoha Shell 1.0.0 club mode build trigger.
