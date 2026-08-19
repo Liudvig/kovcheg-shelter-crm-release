@@ -1,4 +1,4 @@
-name: Build Epoha Shell 0.9.0 Final UI
+name: Build Epoha Shell 1.0.0 Club Mode
 
 on:
   push:
@@ -20,40 +20,42 @@ jobs:
           if (-not (Test-Path $csc)) { Enable-WindowsOptionalFeature -Online -FeatureName NetFx3 -All -NoRestart }
           if (-not (Test-Path $csc)) { throw "csc.exe v3.5 not found" }
 
-      - name: Prepare 0.9.0 source
+      - name: Prepare 1.0.0 source
         shell: powershell
-        run: .\build_v090_fix.ps1
+        run: .\build_v100.ps1
 
       - name: Compile Win7 x86 UTF8
         shell: powershell
         run: |
           New-Item -ItemType Directory -Force -Path out-safe | Out-Null
-          & "$env:WINDIR\Microsoft.NET\Framework\v3.5\csc.exe" /nologo /codepage:65001 /target:winexe /optimize+ /platform:x86 /out:out-safe\EpohaShell-0.9.0-WIN7.exe /reference:System.dll /reference:System.Drawing.dll /reference:System.Windows.Forms.dll /reference:System.Xml.dll ProgramV090Build.cs
+          & "$env:WINDIR\Microsoft.NET\Framework\v3.5\csc.exe" /nologo /codepage:65001 /target:winexe /optimize+ /platform:x86 /out:out-safe\EpohaShell-1.0.0-WIN7.exe /reference:System.dll /reference:System.Drawing.dll /reference:System.Windows.Forms.dll /reference:System.Xml.dll ProgramV100Build.cs
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          Get-FileHash out-safe\EpohaShell-0.9.0-WIN7.exe -Algorithm SHA256 | Format-List
+          Get-FileHash out-safe\EpohaShell-1.0.0-WIN7.exe -Algorithm SHA256 | Format-List
 
       - name: Package
         shell: powershell
         run: |
           @'
-          EPOHA SHELL 0.9.0 - FINAL UI PASS
-          - game header and game grid use separate fixed layout rows; cards can no longer slide under the header
-          - rebuilt game cards with fixed internal geometry and no oversized play icons
-          - cover / EXE icon / subtle initials fallback, all centered inside card bounds
-          - stable adaptive multi-column grid for square and widescreen monitors
-          - simplified game header directly over wallpaper
-          - cleaner brand mark and admin checkbox surface
-          - club mode, Explorer restore, Shell restart, session timer, import/export retained
-          - compatible with current config
+          EPOHA SHELL 1.0.0 - CLUB MODE
+          - stable 0.9.0 interface retained
+          - single-instance guard
+          - self-watchdog restarts Shell after a crash while club mode is active
+          - optional per-user Windows Shell replacement instead of Explorer
+          - original per-user Shell value is backed up and restored automatically
+          - Task Manager / lock / change-password / logoff restrictions in club mode
+          - Win, Alt+Tab, Alt+Esc, Alt+F4 and Ctrl+Esc keyboard hook in client mode
+          - Explorer can be closed in club mode and restored from admin service mode
+          - disabling club mode or Exit Shell restores policies, Shell setting and watchdog state
+          - Ctrl+Alt+E remains the password-protected emergency admin entry
+          - Ctrl+Alt+Del itself remains a protected Windows secure sequence
           - Windows 7 x86 / .NET Framework 3.5
           Admin password: 2000
-          Emergency admin hotkey: Ctrl+Alt+E
           '@ | Set-Content -Encoding ASCII out-safe\README.txt
-          Compress-Archive -Path out-safe\* -DestinationPath EpohaShell-0.9.0-WIN7.zip
+          Compress-Archive -Path out-safe\* -DestinationPath EpohaShell-1.0.0-WIN7.zip
 
       - uses: actions/upload-artifact@v4
         with:
-          name: EpohaShell-0.9.0-WIN7
+          name: EpohaShell-1.0.0-WIN7
           path: |
-            out-safe/EpohaShell-0.9.0-WIN7.exe
-            EpohaShell-0.9.0-WIN7.zip
+            out-safe/EpohaShell-1.0.0-WIN7.exe
+            EpohaShell-1.0.0-WIN7.zip
