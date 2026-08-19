@@ -1,6 +1,6 @@
 $ErrorActionPreference = "Stop"
 
-.\build_v120.ps1
+.\build_v120_fix.ps1
 $src = Get-Content ProgramV120Build.cs -Raw -Encoding UTF8
 $src = $src.Replace('1.2.0','1.2.1')
 
