@@ -1,4 +1,4 @@
-name: Build Epoha Shell 0.3.0 Polished
+name: Build Epoha Shell 0.4.0 Retro 2010
 
 on:
   push:
@@ -22,45 +22,64 @@ jobs:
           }
           if (-not (Test-Path $csc)) { throw "csc.exe v3.5 not found" }
 
+      - name: Prepare Win7 source
+        shell: powershell
+        run: |
+          $src = Get-Content ProgramV04.cs -Raw
+          $extra = @'
+          private Button ActionButton(DbPanel p,string text,int x,int y,int w,int h,EventHandler ev){Button b=new Button();b.Text=text;b.SetBounds(x,y,w,h);b.FlatStyle=FlatStyle.Flat;b.FlatAppearance.BorderColor=Accent;b.BackColor=Color.FromArgb(28,34,48);b.ForeColor=Color.White;b.Font=F(8,FontStyle.Bold);b.Click+=ev;p.Controls.Add(b);return b;}
+
+          '@
+          $src = $src.Replace('        private void BuildAdminGeneral(DbPanel p)', '        ' + $extra + '        private void BuildAdminGeneral(DbPanel p)')
+          Set-Content -Path ProgramV04Build.cs -Value $src -Encoding UTF8
+
       - name: Compile Win7 x86 UTF-8
         shell: powershell
         run: |
           New-Item -ItemType Directory -Force -Path out-safe | Out-Null
-          & "$env:WINDIR\Microsoft.NET\Framework\v3.5\csc.exe" /nologo /codepage:65001 /target:winexe /optimize+ /platform:x86 /out:out-safe\EpohaShell-0.3.0-WIN7.exe /reference:System.dll /reference:System.Drawing.dll /reference:System.Windows.Forms.dll /reference:System.Xml.dll ProgramSafe.cs
+          & "$env:WINDIR\Microsoft.NET\Framework\v3.5\csc.exe" /nologo /codepage:65001 /target:winexe /optimize+ /platform:x86 /out:out-safe\EpohaShell-0.4.0-WIN7.exe /reference:System.dll /reference:System.Drawing.dll /reference:System.Windows.Forms.dll /reference:System.Xml.dll ProgramV04Build.cs
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          Get-FileHash out-safe\EpohaShell-0.3.0-WIN7.exe -Algorithm SHA256 | Format-List
+          Get-FileHash out-safe\EpohaShell-0.4.0-WIN7.exe -Algorithm SHA256 | Format-List
 
       - name: Package
         shell: powershell
         run: |
           @'
-          ЭПОХА SHELL 0.3.0
+          ЭПОХА SHELL 0.4.0 — RETRO 2010
           Windows 7 x86/x64 compatible test build.
 
-          Изменения:
-          - единая двухколоночная разметка без наложения интерфейсов;
-          - логотип слева выровнен точно по высоте шапки;
-          - двойная буферизация и единичная смена экранов для устранения мерцания;
-          - часы больше не вызывают пересборку интерфейса каждую секунду;
-          - визуальные кнопки Администратор / Перезагрузка / Выключение в шапке;
-          - Администратор удалён из левого меню;
-          - новый космический фон и улучшенные карточки игр;
-          - поддержка пользовательских обоев с режимами Fill / Stretch / Center;
-          - настройка затемнения обоев;
-          - настройка цвета интерфейса и размера карточек;
-          - полноценные разделы админки: Общие, Внешний вид, Вкладки, Игры и ярлыки, Система;
-          - добавление/редактирование EXE, параметров, рабочей папки и изображения игры;
-          - изменение порядка вкладок и игр.
+          Исправлено:
+          - полностью удалена прозрачность WinForms-контролов, вызывавшая ошибку Control does not support transparent background colors;
+          - обои теперь рисуются собственным Win7-safe слоем;
+          - затемнение обоев работает через отрисовку, без прозрачного BackColor;
+          - номер ПК перенесён к логотипу;
+          - часы перенесены вправо;
+          - по центру шапки появился статус: система готова / игра запущена / бессрочный сеанс / остаток времени / сеанс завершён;
+          - визуальный стиль переработан под компьютерный клуб 2008–2012: градиенты, стеклянные панели, подсветка и аккуратные карточки;
+          - единая двухколоночная разметка без наложений и мерцания.
+
+          Админка:
+          - номер ПК, пароль;
+          - бессрочный или ограниченный по времени сеанс и сброс таймера;
+          - цвет интерфейса;
+          - обои Fill / Stretch / Center;
+          - затемнение 0–90%;
+          - размер карточек;
+          - создание, переименование, удаление и сортировка вкладок;
+          - добавление, изменение, удаление и сортировка игр;
+          - EXE, аргументы запуска и картинка карточки;
+          - автозапуск ЭПОХИ при входе Windows;
+          - подтверждение выключения/перезагрузки.
 
           Пароль первого запуска: 2000
           Ctrl+Alt+E: вход администратора.
           Клубные блокировки Windows пока не активируются в этой тестовой сборке.
           '@ | Set-Content -Encoding UTF8 out-safe\README.txt
-          Compress-Archive -Path out-safe\* -DestinationPath EpohaShell-0.3.0-WIN7.zip
+          Compress-Archive -Path out-safe\* -DestinationPath EpohaShell-0.4.0-WIN7.zip
 
       - uses: actions/upload-artifact@v4
         with:
-          name: EpohaShell-0.3.0-WIN7
+          name: EpohaShell-0.4.0-WIN7
           path: |
-            out-safe/EpohaShell-0.3.0-WIN7.exe
-            EpohaShell-0.3.0-WIN7.zip
+            out-safe/EpohaShell-0.4.0-WIN7.exe
+            EpohaShell-0.4.0-WIN7.zip
