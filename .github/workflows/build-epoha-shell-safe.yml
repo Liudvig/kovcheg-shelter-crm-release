@@ -22,26 +22,21 @@ jobs:
           }
           if (-not (Test-Path $csc)) { throw "csc.exe v3.5 not found" }
 
-      - name: Prepare Win7 source without encoding damage
+      - name: Prepare UTF8 source
         shell: powershell
         run: |
-          # IMPORTANT: Windows PowerShell 5 treats BOM-less UTF-8 as ANSI unless Encoding is explicit.
-          # This was the cause of the mojibake in 0.4.0.
+          # The workflow script is intentionally ASCII-only.
+          # Source text is read explicitly as UTF-8 to preserve all Cyrillic strings.
           $src = Get-Content ProgramV04.cs -Raw -Encoding UTF8
-
           $src = $src.Replace('config-v04.xml', 'config-v041.xml')
-          $src = $src.Replace('EpohaShell-0.4.0.log', 'EpohaShell-0.4.1.log')
-          $src = $src.Replace('ЭПОХА 0.4.0', 'ЭПОХА 0.4.1')
+          $src = $src.Replace('0.4.0', '0.4.1')
 
-          # Keep the overload used by the appearance page.
           $extra = @'
           private Button ActionButton(DbPanel p,string text,int x,int y,int w,int h,EventHandler ev){Button b=new Button();b.Text=text;b.SetBounds(x,y,w,h);b.FlatStyle=FlatStyle.Flat;b.FlatAppearance.BorderColor=Accent;b.BackColor=Color.FromArgb(28,34,48);b.ForeColor=Color.White;b.Font=F(8,FontStyle.Bold);b.Click+=ev;p.Controls.Add(b);return b;}
 
           '@
           $src = $src.Replace('        private void BuildAdminGeneral(DbPanel p)', '        ' + $extra + '        private void BuildAdminGeneral(DbPanel p)')
 
-          # A non-transparent FlowLayoutPanel which paints the selected wallpaper itself.
-          # This prevents an opaque game grid from covering the wallpaper.
           $wallFlow = @'
           public class WallpaperFlow : FlowLayoutPanel
           {
@@ -116,28 +111,27 @@ jobs:
           if (-not $src.Contains($oldGrid)) { throw "Game grid patch target not found" }
           $src = $src.Replace($oldGrid, $newGrid)
 
-          # Add an immediate wallpaper preview to Appearance settings.
-          $preview = '            WallpaperPanel preview=new WallpaperPanel();preview.SetBounds(390,80,300,165);preview.Mode=cfg.WallpaperMode;preview.Dim=cfg.WallpaperDim;preview.LoadWallpaper(cfg.WallpaperPath);p.Controls.Add(preview);' + "`r`n            "
-          $targetMode = '            FieldLabel(p,"Режим обоев",260);'
-          if (-not $src.Contains($targetMode)) { throw "Appearance preview patch target not found" }
-          $src = $src.Replace($targetMode, $preview + $targetMode)
+          # Insert a live wallpaper preview immediately before the appearance field at y=260.
+          $preview = '            WallpaperPanel preview=new WallpaperPanel();preview.SetBounds(390,80,300,165);preview.Mode=cfg.WallpaperMode;preview.Dim=cfg.WallpaperDim;preview.LoadWallpaper(cfg.WallpaperPath);p.Controls.Add(preview);' + "`r`n"
+          $pattern = '(?m)^\s*FieldLabel\(p,"[^"]+",260\);'
+          $match = [regex]::Match($src, $pattern)
+          if (-not $match.Success) { throw "Appearance preview patch target not found" }
+          $src = $src.Substring(0,$match.Index) + $preview + $match.Value + $src.Substring($match.Index + $match.Length)
 
           $src = $src.Replace('work.Dim=dim.Value;work.Invalidate();', 'work.Dim=dim.Value;work.Invalidate();preview.Dim=dim.Value;preview.Invalidate();')
 
-          # Never overwrite a possibly loaded wallpaper file. Store every chosen wallpaper under a unique name.
           $oldChoose = 'try{string ext=Path.GetExtension(d.FileName);string dst=Path.Combine(Program.AppDir,"wallpaper"+ext);File.Copy(d.FileName,dst,true);cfg.WallpaperPath=dst;cfg.Save();ApplyConfigToUi();}'
           $newChoose = 'try{using(Image test=Image.FromFile(d.FileName)){int testW=test.Width;}string ext=Path.GetExtension(d.FileName);string dst=Path.Combine(Program.AppDir,"wallpaper-"+DateTime.Now.Ticks.ToString()+ext);File.Copy(d.FileName,dst,true);cfg.WallpaperPath=dst;cfg.Save();ApplyConfigToUi();}'
           if (-not $src.Contains($oldChoose)) { throw "Wallpaper copy patch target not found" }
           $src = $src.Replace($oldChoose, $newChoose)
 
-          # Guard against another accidental ANSI conversion.
-          if (-not $src.Contains('ЭПОХА')) { throw "UTF-8 validation failed: ЭПОХА missing" }
-          if (-not $src.Contains('НАСТРОЙКИ')) { throw "UTF-8 validation failed: НАСТРОЙКИ missing" }
-          if (-not $src.Contains('Внешний вид')) { throw "UTF-8 validation failed: Внешний вид missing" }
+          # Validate by Unicode code points rather than literal Cyrillic in this PowerShell file.
+          $brand = ([char]0x042D).ToString()+[char]0x041F+[char]0x041E+[char]0x0425+[char]0x0410
+          if (-not $src.Contains($brand)) { throw "UTF-8 source validation failed" }
 
           Set-Content -Path ProgramV041Build.cs -Value $src -Encoding UTF8
 
-      - name: Compile Win7 x86 UTF-8
+      - name: Compile Win7 x86 UTF8
         shell: powershell
         run: |
           New-Item -ItemType Directory -Force -Path out-safe | Out-Null
@@ -149,21 +143,18 @@ jobs:
         shell: powershell
         run: |
           @'
-          ЭПОХА SHELL 0.4.1 — WINDOWS 7 FIX
-
-          Исправлено:
-          - кракозябры: исходник теперь всегда читается как UTF-8, а перед сборкой проверяются русские строки;
-          - новый config-v041.xml, чтобы испорченные строки из 0.4.0 не вернулись из старого конфига;
-          - игровая сетка больше не закрывает обои непрозрачным чёрным слоем;
-          - обои рисуются непосредственно фоном игрового поля без Transparent BackColor;
-          - выбранные обои копируются под уникальным именем, поэтому нет конфликта с уже открытым файлом;
-          - во вкладке «Внешний вид» добавлен предпросмотр обоев;
-          - ползунок затемнения сразу меняет предпросмотр;
-          - режимы Fill / Stretch / Center сохраняются.
-
-          Пароль первого запуска: 2000
-          Ctrl+Alt+E: вход администратора.
-          '@ | Set-Content -Encoding UTF8 out-safe\README.txt
+          EPOHA SHELL 0.4.1 - WINDOWS 7 FIX
+          - explicit UTF-8 source decoding
+          - fresh config-v041.xml
+          - wallpaper is painted by the game grid itself
+          - no transparent WinForms backgrounds
+          - live wallpaper preview in appearance settings
+          - live dim preview
+          - unique copied wallpaper filenames
+          - Fill / Stretch / Center modes
+          Admin password: 2000
+          Ctrl+Alt+E: admin login
+          '@ | Set-Content -Encoding ASCII out-safe\README.txt
           Compress-Archive -Path out-safe\* -DestinationPath EpohaShell-0.4.1-WIN7.zip
 
       - uses: actions/upload-artifact@v4
