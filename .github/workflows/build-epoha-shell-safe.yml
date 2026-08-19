@@ -1,4 +1,4 @@
-name: Build Epoha Shell 0.2.0 Cosmic
+name: Build Epoha Shell 0.3.0 Polished
 
 on:
   push:
@@ -26,35 +26,41 @@ jobs:
         shell: powershell
         run: |
           New-Item -ItemType Directory -Force -Path out-safe | Out-Null
-          & "$env:WINDIR\Microsoft.NET\Framework\v3.5\csc.exe" /nologo /codepage:65001 /target:winexe /optimize+ /platform:x86 /out:out-safe\EpohaShell-0.2.0-WIN7.exe /reference:System.dll /reference:System.Drawing.dll /reference:System.Windows.Forms.dll /reference:System.Xml.dll ProgramSafe.cs
+          & "$env:WINDIR\Microsoft.NET\Framework\v3.5\csc.exe" /nologo /codepage:65001 /target:winexe /optimize+ /platform:x86 /out:out-safe\EpohaShell-0.3.0-WIN7.exe /reference:System.dll /reference:System.Drawing.dll /reference:System.Windows.Forms.dll /reference:System.Xml.dll ProgramSafe.cs
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          Get-FileHash out-safe\EpohaShell-0.2.0-WIN7.exe -Algorithm SHA256 | Format-List
+          Get-FileHash out-safe\EpohaShell-0.3.0-WIN7.exe -Algorithm SHA256 | Format-List
 
       - name: Package
         shell: powershell
         run: |
           @'
-          ЭПОХА SHELL 0.2.0
+          ЭПОХА SHELL 0.3.0
           Windows 7 x86/x64 compatible test build.
 
-          Главное:
-          - игровая область физически отделена от левого меню и больше не может заходить под него;
-          - новый космический фон и подсветка карточек;
-          - адаптивная сетка под 5:4, 16:10, 16:9 и Full HD;
-          - полноценная админка: общие настройки, вкладки, игры, внешний вид, система;
-          - сохранение конфигурации в %LOCALAPPDATA%\Epoha\config.xml;
-          - настройка номера ПК, пароля, вкладок, ярлыков игр, картинок, EXE, параметров запуска;
-          - выбор цвета подсветки и размера карточек.
+          Изменения:
+          - единая двухколоночная разметка без наложения интерфейсов;
+          - логотип слева выровнен точно по высоте шапки;
+          - двойная буферизация и единичная смена экранов для устранения мерцания;
+          - часы больше не вызывают пересборку интерфейса каждую секунду;
+          - визуальные кнопки Администратор / Перезагрузка / Выключение в шапке;
+          - Администратор удалён из левого меню;
+          - новый космический фон и улучшенные карточки игр;
+          - поддержка пользовательских обоев с режимами Fill / Stretch / Center;
+          - настройка затемнения обоев;
+          - настройка цвета интерфейса и размера карточек;
+          - полноценные разделы админки: Общие, Внешний вид, Вкладки, Игры и ярлыки, Система;
+          - добавление/редактирование EXE, параметров, рабочей папки и изображения игры;
+          - изменение порядка вкладок и игр.
 
           Пароль первого запуска: 2000
           Ctrl+Alt+E: вход администратора.
-          Защитные клубные ограничения Windows пока не включены в этой тестовой сборке.
+          Клубные блокировки Windows пока не активируются в этой тестовой сборке.
           '@ | Set-Content -Encoding UTF8 out-safe\README.txt
-          Compress-Archive -Path out-safe\* -DestinationPath EpohaShell-0.2.0-WIN7.zip
+          Compress-Archive -Path out-safe\* -DestinationPath EpohaShell-0.3.0-WIN7.zip
 
       - uses: actions/upload-artifact@v4
         with:
-          name: EpohaShell-0.2.0-WIN7
+          name: EpohaShell-0.3.0-WIN7
           path: |
-            out-safe/EpohaShell-0.2.0-WIN7.exe
-            EpohaShell-0.2.0-WIN7.zip
+            out-safe/EpohaShell-0.3.0-WIN7.exe
+            EpohaShell-0.3.0-WIN7.zip
