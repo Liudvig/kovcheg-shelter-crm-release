@@ -1,6 +1,9 @@
-name: Build Epoha Shell 0.1.1 Safe
+name: Build Epoha Shell 0.1.2 Win7 Font Fix
 
 on:
+  push:
+    branches:
+      - build/epoha-shell-prototype
   pull_request:
   workflow_dispatch:
 
@@ -17,28 +20,35 @@ jobs:
             Enable-WindowsOptionalFeature -Online -FeatureName NetFx3 -All -NoRestart
           }
           if (-not (Test-Path $csc)) { throw "csc.exe v3.5 not found" }
-      - name: Compile SAFE x86
+      - name: Prepare Win7-safe source
+        shell: powershell
+        run: |
+          $src = Get-Content ProgramSafe.cs -Raw
+          $src = $src.Replace('"Segoe UI"', '"Tahoma"')
+          Set-Content -Path ProgramSafeWin7.cs -Value $src -Encoding UTF8
+          if ((Get-Content ProgramSafeWin7.cs -Raw) -match 'Segoe UI') { throw "Segoe UI replacement failed" }
+      - name: Compile Win7 x86
         shell: powershell
         run: |
           New-Item -ItemType Directory -Force -Path out-safe | Out-Null
-          & "$env:WINDIR\Microsoft.NET\Framework\v3.5\csc.exe" /nologo /target:winexe /optimize+ /platform:x86 /out:out-safe\EpohaShell-0.1.1-SAFE.exe /reference:System.dll /reference:System.Drawing.dll /reference:System.Windows.Forms.dll ProgramSafe.cs
+          & "$env:WINDIR\Microsoft.NET\Framework\v3.5\csc.exe" /nologo /target:winexe /optimize+ /platform:x86 /out:out-safe\EpohaShell-0.1.2-WIN7.exe /reference:System.dll /reference:System.Drawing.dll /reference:System.Windows.Forms.dll ProgramSafeWin7.cs
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          Get-FileHash out-safe\EpohaShell-0.1.1-SAFE.exe -Algorithm SHA256 | Format-List
+          Get-FileHash out-safe\EpohaShell-0.1.2-WIN7.exe -Algorithm SHA256 | Format-List
       - name: Package
         shell: powershell
         run: |
           @'
-          ЭПОХА SHELL 0.1.1 SAFE
-          Windows 7 diagnostic build.
+          ЭПОХА SHELL 0.1.2 WIN7 FONT FIX
+          Исправление запуска на Windows 7: интерфейс больше не зависит от Segoe UI.
+          Используется Tahoma, штатный шрифт старых Windows.
           Admin password: 2000
           Ctrl+Alt+E: admin login
-          No Windows lockdown/registry restrictions are enabled in this SAFE build.
-          If startup fails after CLR loads, see %TEMP%\EpohaShell-0.1.1.log
+          No Windows lockdown/registry restrictions are enabled in this test build.
           '@ | Set-Content -Encoding UTF8 out-safe\README.txt
-          Compress-Archive -Path out-safe\* -DestinationPath EpohaShell-0.1.1-SAFE.zip
+          Compress-Archive -Path out-safe\* -DestinationPath EpohaShell-0.1.2-WIN7.zip
       - uses: actions/upload-artifact@v4
         with:
-          name: EpohaShell-0.1.1-SAFE
+          name: EpohaShell-0.1.2-WIN7
           path: |
-            out-safe/EpohaShell-0.1.1-SAFE.exe
-            EpohaShell-0.1.1-SAFE.zip
+            out-safe/EpohaShell-0.1.2-WIN7.exe
+            EpohaShell-0.1.2-WIN7.zip
