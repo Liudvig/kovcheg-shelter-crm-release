@@ -25,7 +25,7 @@ jobs:
       - name: Prepare 0.6.1 source
         shell: powershell
         run: |
-          .\build_v061.ps1
+          .\build_v061_fix.ps1
 
       - name: Compile Win7 x86 UTF8
         shell: powershell
