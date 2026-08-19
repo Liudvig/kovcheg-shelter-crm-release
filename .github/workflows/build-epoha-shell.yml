@@ -1,0 +1,43 @@
+name: Build Epoha Shell prototype
+
+on:
+  push:
+    branches:
+      - build/epoha-shell-prototype
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Enable .NET Framework 3.5
+        shell: powershell
+        run: |
+          $csc = "$env:WINDIR\Microsoft.NET\Framework\v3.5\csc.exe"
+          if (-not (Test-Path $csc)) {
+            Enable-WindowsOptionalFeature -Online -FeatureName NetFx3 -All -NoRestart
+          }
+          if (-not (Test-Path $csc)) { throw "csc.exe v3.5 not found" }
+
+      - name: Compile
+        shell: powershell
+        run: |
+          New-Item -ItemType Directory -Force -Path out | Out-Null
+          & "$env:WINDIR\Microsoft.NET\Framework\v3.5\csc.exe" /nologo /target:winexe /optimize+ /platform:anycpu /out:out\EpohaShell.exe /reference:System.dll /reference:System.Drawing.dll /reference:System.Windows.Forms.dll /reference:System.Xml.dll Program.cs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Package
+        shell: powershell
+        run: |
+          Copy-Item README_EPOHA.md out\README.txt
+          Compress-Archive -Path out\* -DestinationPath EpohaShell-0.1.zip
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: EpohaShell-0.1
+          path: EpohaShell-0.1.zip
