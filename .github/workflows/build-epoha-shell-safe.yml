@@ -22,7 +22,7 @@ jobs:
 
       - name: Prepare 1.0.0 source
         shell: powershell
-        run: .\build_v100_fix.ps1
+        run: .\build_v100_final.ps1
 
       - name: Compile Win7 x86 UTF8
         shell: powershell
