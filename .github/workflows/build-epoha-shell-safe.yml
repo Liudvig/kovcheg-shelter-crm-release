@@ -1,4 +1,4 @@
-name: Build Epoha Shell 0.1.2 Win7 Font Fix
+name: Build Epoha Shell 0.1.3 UI
 
 on:
   push:
@@ -12,6 +12,7 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
+
       - name: Enable .NET Framework 3.5
         shell: powershell
         run: |
@@ -20,35 +21,39 @@ jobs:
             Enable-WindowsOptionalFeature -Online -FeatureName NetFx3 -All -NoRestart
           }
           if (-not (Test-Path $csc)) { throw "csc.exe v3.5 not found" }
-      - name: Prepare Win7-safe source
-        shell: powershell
-        run: |
-          $src = Get-Content ProgramSafe.cs -Raw
-          $src = $src.Replace('"Segoe UI"', '"Tahoma"')
-          Set-Content -Path ProgramSafeWin7.cs -Value $src -Encoding UTF8
-          if ((Get-Content ProgramSafeWin7.cs -Raw) -match 'Segoe UI') { throw "Segoe UI replacement failed" }
-      - name: Compile Win7 x86
+
+      - name: Compile Win7 x86 UTF-8
         shell: powershell
         run: |
           New-Item -ItemType Directory -Force -Path out-safe | Out-Null
-          & "$env:WINDIR\Microsoft.NET\Framework\v3.5\csc.exe" /nologo /target:winexe /optimize+ /platform:x86 /out:out-safe\EpohaShell-0.1.2-WIN7.exe /reference:System.dll /reference:System.Drawing.dll /reference:System.Windows.Forms.dll ProgramSafeWin7.cs
+          & "$env:WINDIR\Microsoft.NET\Framework\v3.5\csc.exe" /nologo /codepage:65001 /target:winexe /optimize+ /platform:x86 /out:out-safe\EpohaShell-0.1.3-WIN7.exe /reference:System.dll /reference:System.Drawing.dll /reference:System.Windows.Forms.dll ProgramSafe.cs
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          Get-FileHash out-safe\EpohaShell-0.1.2-WIN7.exe -Algorithm SHA256 | Format-List
+          Get-FileHash out-safe\EpohaShell-0.1.3-WIN7.exe -Algorithm SHA256 | Format-List
+
       - name: Package
         shell: powershell
         run: |
           @'
-          ЭПОХА SHELL 0.1.2 WIN7 FONT FIX
-          Исправление запуска на Windows 7: интерфейс больше не зависит от Segoe UI.
-          Используется Tahoma, штатный шрифт старых Windows.
-          Admin password: 2000
-          Ctrl+Alt+E: admin login
-          No Windows lockdown/registry restrictions are enabled in this test build.
+          ЭПОХА SHELL 0.1.3
+          Windows 7 x86/x64 compatible test build.
+
+          Исправлено:
+          - исходник компилируется как UTF-8, русский текст должен отображаться нормально;
+          - логотип и название клуба перенесены наверх левой колонки;
+          - часы находятся по центру верхней панели;
+          - справа только Перезагрузить и Выключить;
+          - Администратор стал отдельной вкладкой;
+          - внутри вкладки Администратор кнопка ВОЙТИ расположена по центру.
+
+          Пароль тестовой админки: 2000
+          Ctrl+Alt+E: аварийный вызов админ-входа.
+          Защитные ограничения Windows в этой тестовой сборке пока не включены.
           '@ | Set-Content -Encoding UTF8 out-safe\README.txt
-          Compress-Archive -Path out-safe\* -DestinationPath EpohaShell-0.1.2-WIN7.zip
+          Compress-Archive -Path out-safe\* -DestinationPath EpohaShell-0.1.3-WIN7.zip
+
       - uses: actions/upload-artifact@v4
         with:
-          name: EpohaShell-0.1.2-WIN7
+          name: EpohaShell-0.1.3-WIN7
           path: |
-            out-safe/EpohaShell-0.1.2-WIN7.exe
-            EpohaShell-0.1.2-WIN7.zip
+            out-safe/EpohaShell-0.1.3-WIN7.exe
+            EpohaShell-0.1.3-WIN7.zip
