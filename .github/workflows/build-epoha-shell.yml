@@ -24,20 +24,28 @@ jobs:
           }
           if (-not (Test-Path $csc)) { throw "csc.exe v3.5 not found" }
 
-      - name: Compile
+      - name: Compile Win7 x86
         shell: powershell
         run: |
           New-Item -ItemType Directory -Force -Path out | Out-Null
-          & "$env:WINDIR\Microsoft.NET\Framework\v3.5\csc.exe" /nologo /target:winexe /optimize+ /platform:anycpu /out:out\EpohaShell.exe /reference:System.dll /reference:System.Drawing.dll /reference:System.Windows.Forms.dll /reference:System.Xml.dll Program.cs
+          & "$env:WINDIR\Microsoft.NET\Framework\v3.5\csc.exe" /nologo /target:winexe /optimize+ /platform:x86 /out:out\EpohaShell-0.1.1.exe /reference:System.dll /reference:System.Drawing.dll /reference:System.Windows.Forms.dll /reference:System.Xml.dll ProgramSafe.cs
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          @'
+          <?xml version="1.0"?>
+          <configuration>
+            <startup useLegacyV2RuntimeActivationPolicy="true">
+              <supportedRuntime version="v2.0.50727"/>
+            </startup>
+          </configuration>
+          '@ | Set-Content -Encoding ASCII out\EpohaShell-0.1.1.exe.config
 
       - name: Package
         shell: powershell
         run: |
           Copy-Item README_EPOHA.md out\README.txt
-          Compress-Archive -Path out\* -DestinationPath EpohaShell-0.1.zip
+          Compress-Archive -Path out\* -DestinationPath EpohaShell-0.1.1-Windows7.zip
 
       - uses: actions/upload-artifact@v4
         with:
-          name: EpohaShell-0.1
-          path: EpohaShell-0.1.zip
+          name: EpohaShell-0.1.1-Windows7
+          path: EpohaShell-0.1.1-Windows7.zip
