@@ -17,6 +17,10 @@ Set-Content -Path build_v110_final_runtime.ps1 -Value $out -Encoding UTF8
 
 $src = Get-Content ProgramV110Build.cs -Raw -Encoding UTF8
 
+# .NET 3.5 compatibility fixes in the generated branding code.
+$src = $src.Replace('Environment.GetFolderPath(Environment.SpecialFolder.Windows)','Environment.GetEnvironmentVariable("WINDIR")')
+$src = $src.Replace('g.FillEllipse(230,55,564,564);','g.FillEllipse(halo,230,55,564,564);')
+
 # Initialize the EPOHA task strip as an overlay so it does not depend on legacy footer geometry.
 $ctorOld = '            BuildChrome(); ApplyConfigToUi(); ShowGames();'
 $ctorNew = '            BuildChrome(); InitClubTaskStrip(); ApplyConfigToUi(); ShowGames();'
